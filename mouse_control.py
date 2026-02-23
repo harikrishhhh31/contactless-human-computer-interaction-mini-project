@@ -53,6 +53,7 @@ class GestureMouseController:
         self.gesture_hold_start = 0
         self.current_held_gesture = None
         self.last_cmd_time = 0
+        self.last_hand_y = 0
         
         # Performance settings
         pyautogui.FAILSAFE = False
@@ -180,7 +181,13 @@ class GestureMouseController:
             self.pinch_frame_count = 0
             return "pinch_release"
 
-        # 6. Move (Exactly 1 Finger: Index)
+        # 6. Scroll (Exactly 4 fingers: Index+Middle+Ring+Pinky)
+        if index_open and middle_open and ring_open and pinky_open and not fingers[0]:
+            return "scroll"
+        
+        self.last_hand_y = wrist.y
+
+        # 7. Move (Exactly 1 Finger: Index)
         if index_open and not middle_open and not ring_open and not pinky_open:
             return "move"
 
@@ -204,6 +211,8 @@ class GestureMouseController:
                     self._do_minimize()
                 elif cmd_type == "maximize":
                     self._do_maximize()
+                elif cmd_type == "scroll":
+                    pyautogui.scroll(int(amount))
                 self.cmd_queue.task_done()
             except Exception as e:
                 print(f"Worker error: {e}")
@@ -224,10 +233,12 @@ class GestureMouseController:
             self.gesture_hold_start = current_time
             multiplier = 1
 
-        # 2. Command Throttling (0.15s cooldown for system commands)
-        if gesture in ["thumbs_up", "thumbs_down", "palm_open", "palm_close"]:
+        # 2. Command Throttling
+        if gesture in ["thumbs_up", "thumbs_down", "palm_open", "palm_close", "scroll_up", "scroll_down"]:
+            # Scrolling needs faster response for smoothness
+            cooldown = 0.05 if "scroll" in gesture else 0.15
             
-            if current_time - self.last_cmd_time > 0.15:
+            if current_time - self.last_cmd_time > cooldown:
                 self.last_cmd_time = current_time
                 
                 if gesture == "thumbs_up":
@@ -245,6 +256,14 @@ class GestureMouseController:
                 elif gesture == "palm_close":
                     self.cmd_queue.put(("minimize", None, None))
                     print("Minimize Window")
+                
+                elif gesture == "scroll_up":
+                    self.cmd_queue.put(("scroll", None, 150 * multiplier))
+                    print(f"Scroll Up {'(x8)' if multiplier > 1 else ''}")
+                
+                elif gesture == "scroll_down":
+                    self.cmd_queue.put(("scroll", None, -150 * multiplier))
+                    print(f"Scroll Down {'(x8)' if multiplier > 1 else ''}")
             
             return
         
@@ -373,6 +392,7 @@ class GestureMouseController:
         print("- Index finger up: Move cursor")
         print("- Two fingers up (Index+Middle): Click/Drag")
         print("- Three fingers up (Index+Middle+Ring): Double click")
+        print("- Four fingers up: Scroll (Upper box = Up, Lower box = Down)")
         print("- Thumbs Up: Volume increase")
         print("- Thumbs Down: Volume decrease")
         print("- Open palm (fist to open): Maximize window")
@@ -486,6 +506,29 @@ class GestureMouseController:
                     # Detect gesture
                     gesture = self.detect_gesture(landmarks)
                     
+                    # Special Case: scrolling with two regions
+                    if gesture == "scroll":
+                        # Split box into two 50% height regions
+                        y_mid = (y1_box + y2_box) // 2
+                        
+                        # Draw the regions (red boxes) only when scrolling
+                        # Upper box
+                        cv2.rectangle(frame, (x1_box, y1_box), (x2_box, y_mid), (0, 0, 255), 2)
+                        # Lower box
+                        cv2.rectangle(frame, (x1_box, y_mid), (x2_box, y2_box), (0, 0, 255), 2)
+                        
+                        # Labels for the boxes
+                        cv2.putText(frame, "Scroll Up", (x1_box + 5, y1_box + 25), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
+                        cv2.putText(frame, "Scroll Down", (x1_box + 5, y_mid + 25), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
+                        
+                        # Determine direction based on virtual cursor position
+                        if indicator_y < y_mid:
+                            self.execute_gesture("scroll_up")
+                        else:
+                            self.execute_gesture("scroll_down")
+                    
                     # Display gesture on screen
                     gesture_color = (0, 255, 0) if gesture == "move" else (0, 255, 255)
                     if gesture in ["pinch", "double_pinch"]:
@@ -505,7 +548,7 @@ class GestureMouseController:
                         pyautogui.moveTo(smooth_x, smooth_y, duration=0)
                     
                     # Execute other gestures
-                    else:
+                    elif gesture != "scroll":
                         self.execute_gesture(gesture)
             
             # Display frame
