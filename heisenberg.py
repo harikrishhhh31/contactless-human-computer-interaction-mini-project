@@ -44,6 +44,7 @@ class VoiceAssistant (CommandManager):
     
     def run(self):
         """Main loop"""
+        self.list_available_software()
         self.speak("Voice assistant activated. How can I help you?")
         
         while True:
