@@ -165,8 +165,19 @@ class GestureMouseController:
         else:
             self.last_double_state = False
 
-        # 5. Click/Drag (Exactly 2 Fingers: Index+Middle)
+        # 5. Right Click (Exactly 2 Fingers: Index+Middle)
         if index_open and middle_open and not ring_open:
+            if not getattr(self, 'last_right_state', False):
+                self.last_right_state = True
+                return "right_click"
+            return "none"
+        else:
+            self.last_right_state = False
+
+        # 6. Left Click/Drag (Pinch: Thumb + Index)
+        # Use 3D distance between thumb and index tips
+        thumb_index_dist = self.get_distance_3d(landmarks[4], landmarks[8])
+        if thumb_index_dist < 0.05:
             self.pinch_frame_count += 1
             if self.pinch_frame_count >= self.pinch_threshold:
                 if not self.last_pinch_state:
@@ -175,7 +186,7 @@ class GestureMouseController:
                 return "pinch_hold"
             return "none"
         
-        # Handle release of click/drag
+        # Handle release of left click/drag
         if self.last_pinch_state:
             self.last_pinch_state = False
             self.pinch_frame_count = 0
@@ -269,13 +280,18 @@ class GestureMouseController:
         
         # 3. Click execution (Drag Support)
         if gesture == "pinch":
-            pyautogui.mouseDown()
-            print("Click (Down)")
+            pyautogui.mouseDown(button='left')
+            print("Left Click (Down)")
             return
         
         elif gesture == "pinch_release":
-            pyautogui.mouseUp()
-            print("Click (Release)")
+            pyautogui.mouseUp(button='left')
+            print("Left Click (Release)")
+            return
+            
+        elif gesture == "right_click":
+            pyautogui.click(button='right')
+            print("Right Click")
             return
             
         elif gesture == "double_pinch":
@@ -390,8 +406,9 @@ class GestureMouseController:
         print("Gesture Mouse Controller Started!")
         print("\nGestures:")
         print("- Index finger up: Move cursor")
-        print("- Two fingers up (Index+Middle): Click/Drag")
-        print("- Three fingers up (Index+Middle+Ring): Double click")
+        print("- Pinch (Thumb + Index): Left Click / Drag")
+        print("- Two fingers up (Index + Middle): Right Click")
+        print("- Three fingers up (Index + Middle + Ring): Double Click")
         print("- Four fingers up: Scroll (Upper box = Up, Lower box = Down)")
         print("- Thumbs Up: Volume increase")
         print("- Thumbs Down: Volume decrease")
