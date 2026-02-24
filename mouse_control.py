@@ -32,7 +32,7 @@ class GestureMouseController:
         self.click_cooldown = 0
         self.last_pinch_state = False
         self.pinch_frame_count = 0
-        self.pinch_threshold = 5  # Number of consecutive frames to confirm pinch
+        self.pinch_threshold = 3  # Number of consecutive frames to confirm pinch
         
         # Gesture state
         self.prev_gesture = None
@@ -110,6 +110,7 @@ class GestureMouseController:
         ring_tip = landmarks[16]
         pinky_tip = landmarks[20]
         wrist = landmarks[0]
+        self.current_pinch_dist = self.get_distance_3d(thumb_tip, index_tip)
         
         # Count fingers using distance-based logic
         fingers = []
@@ -139,68 +140,67 @@ class GestureMouseController:
             elif thumb_tip.y > thumb_mcp.y:
                 return "thumbs_down"
 
-        # 3. Palm Open/Close (Maximize/Minimize)
-        if not hasattr(self, 'hand_state'):
-            self.hand_state = "neutral"
-        
-        if num_fingers >= 4:
-            if self.hand_state == "fist":
-                self.hand_state = "open"
-                return "palm_open"
-            self.hand_state = "open"
-        elif num_fingers == 0:
-            if self.hand_state == "open":
-                self.hand_state = "fist"
-                return "palm_close"
-            self.hand_state = "fist"
-        elif num_fingers == 1 and index_open:
-            self.hand_state = "neutral"
 
-        # 4. Double Click (Exactly 3 Fingers: Index+Middle+Ring)
+        # --- GESTURE PRIORITY DETECTION ---
+        # Initialize stability trackers if non-existent
+        if not hasattr(self, 'pending_gesture'): self.pending_gesture = "none"
+        if not hasattr(self, 'click_frame_count'): self.click_frame_count = 0
+
+        current_candidate = "none"
+
+        # 4. Double Click (3 Fingers)
         if index_open and middle_open and ring_open and not pinky_open:
-            if not getattr(self, 'last_double_state', False):
-                self.last_double_state = True
-                return "double_pinch"
-            return "none"
-        else:
-            self.last_double_state = False
-
-        # 5. Right Click (Exactly 2 Fingers: Index+Middle)
-        if index_open and middle_open and not ring_open:
-            if not getattr(self, 'last_right_state', False):
-                self.last_right_state = True
-                return "right_click"
-            return "none"
-        else:
-            self.last_right_state = False
-
-        # 6. Left Click/Drag (Pinch: Thumb + Index)
-        # Use 3D distance between thumb and index tips
-        thumb_index_dist = self.get_distance_3d(landmarks[4], landmarks[8])
-        if thumb_index_dist < 0.05:
-            self.pinch_frame_count += 1
-            if self.pinch_frame_count >= self.pinch_threshold:
-                if not self.last_pinch_state:
-                    self.last_pinch_state = True
-                    return "pinch"
-                return "pinch_hold"
-            return "none"
+            current_candidate = "double_pinch"
         
-        # Handle release of left click/drag
-        if self.last_pinch_state:
-            self.last_pinch_state = False
-            self.pinch_frame_count = 0
-            return "pinch_release"
+        # 5. Right Click (2 Fingers)
+        elif index_open and middle_open and not ring_open:
+            current_candidate = "right_click"
 
-        # 6. Scroll (Exactly 4 fingers: Index+Middle+Ring+Pinky)
+        # 6. Scroll (4 Fingers)
         if index_open and middle_open and ring_open and pinky_open and not fingers[0]:
-            return "scroll"
+            current_candidate = "scroll"
         
-        self.last_hand_y = wrist.y
+        # 7. Move (1 Finger - Index up, Middle/Ring/Pinky down)
+        elif index_open and not middle_open and not ring_open and not pinky_open:
+            current_candidate = "move"
 
-        # 7. Move (Exactly 1 Finger: Index)
-        if index_open and not middle_open and not ring_open and not pinky_open:
-            return "move"
+        # --- STABILITY & EXECUTION ---
+        
+        # If the hand state changed, reset the counter
+        if current_candidate != self.pending_gesture:
+            self.pending_gesture = current_candidate
+            self.click_frame_count = 0
+            # Continuous gestures (move/scroll) don't need the buffer to transition OUT
+            if current_candidate in ["move", "none"]:
+                return current_candidate
+            return "none"
+
+        # If it's a stable gesture
+        self.click_frame_count += 1
+        
+        # Immediate return for continuous/neutral gestures
+        if current_candidate in ["move", "scroll", "none"]:
+            return current_candidate
+
+        # For discrete actions (clicks), wait for confirmation threshold
+        if self.click_frame_count == self.pinch_threshold:
+            # This triggers exactly ONCE when the gesture becomes stable
+            if current_candidate == "right_click": self.last_right_state = True
+            if current_candidate == "double_pinch": self.last_double_state = True
+            return current_candidate
+        
+        # While waiting for the threshold, show a "clicking" state
+        if self.click_frame_count > 0 and self.click_frame_count < self.pinch_threshold:
+            return "clicking"
+
+        # If the click already fired, show a "held" state but don't re-trigger
+        if self.click_frame_count > self.pinch_threshold:
+            return f"{current_candidate}_held"
+            
+        # Reset click tracking if we moved or stopped gesturing
+        if current_candidate in ["none", "move"]:
+            self.last_right_state = False
+            self.last_double_state = False
 
         return "none"
     
@@ -218,10 +218,6 @@ class GestureMouseController:
                 cmd_type, action, amount = self.cmd_queue.get()
                 if cmd_type == "volume":
                     self._do_change_volume(action, amount)
-                elif cmd_type == "minimize":
-                    self._do_minimize()
-                elif cmd_type == "maximize":
-                    self._do_maximize()
                 elif cmd_type == "scroll":
                     pyautogui.scroll(int(amount))
                 self.cmd_queue.task_done()
@@ -236,8 +232,8 @@ class GestureMouseController:
         if gesture == self.current_held_gesture and gesture != "none":
             # Gesture is being held
             hold_duration = current_time - self.gesture_hold_start
-            # If held for more than 1.5 seconds, use 8x multiplier
-            multiplier = 8 if hold_duration > 1.5 else 1
+            # If held for more than 1.5 seconds, use 2x multiplier
+            multiplier = 2 if hold_duration > 1.5 else 1
         else:
             # New gesture started
             self.current_held_gesture = gesture
@@ -245,7 +241,7 @@ class GestureMouseController:
             multiplier = 1
 
         # 2. Command Throttling
-        if gesture in ["thumbs_up", "thumbs_down", "palm_open", "palm_close", "scroll_up", "scroll_down"]:
+        if gesture in ["thumbs_up", "thumbs_down", "scroll_up", "scroll_down"]:
             # Scrolling needs faster response for smoothness
             cooldown = 0.05 if "scroll" in gesture else 0.15
             
@@ -260,14 +256,6 @@ class GestureMouseController:
                     self.cmd_queue.put(("volume", "decrease", 0.05 * multiplier))
                     print(f"Volume Down {'(x8)' if multiplier > 1 else ''}")
                 
-                elif gesture == "palm_open":
-                    self.cmd_queue.put(("maximize", None, None))
-                    print("Maximize Window")
-                
-                elif gesture == "palm_close":
-                    self.cmd_queue.put(("minimize", None, None))
-                    print("Minimize Window")
-                
                 elif gesture == "scroll_up":
                     self.cmd_queue.put(("scroll", None, 150 * multiplier))
                     print(f"Scroll Up {'(x8)' if multiplier > 1 else ''}")
@@ -278,18 +266,8 @@ class GestureMouseController:
             
             return
         
-        # 3. Click execution (Drag Support)
-        if gesture == "pinch":
-            pyautogui.mouseDown(button='left')
-            print("Left Click (Down)")
-            return
-        
-        elif gesture == "pinch_release":
-            pyautogui.mouseUp(button='left')
-            print("Left Click (Release)")
-            return
-            
-        elif gesture == "right_click":
+        # 3. Click execution (Discrete)
+        if gesture == "right_click":
             pyautogui.click(button='right')
             print("Right Click")
             return
@@ -333,87 +311,17 @@ class GestureMouseController:
                     subprocess.run(['amixer', '-D', 'pulse', 'sset', 'Master', f'{step}%-'])
         except Exception as e:
             print(f"Volume error: {e}")
-
-    def _do_minimize(self): self.minimize_window()
-    def _do_maximize(self): self.maximize_window()
-    
-    def minimize_window(self):
-        """Minimize the active window"""
-        system_name = platform.system()
-        try:
-            if system_name == "Windows":
-                try:
-                    import pyautogui as pag
-                    pag.hotkey('win', 'down')
-                except ImportError:
-                    subprocess.run(['powershell', '-Command', 
-                        '''Add-Type @"
-                        using System;
-                        using System.Runtime.InteropServices;
-                        public class Window {
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr GetForegroundWindow();
-                            [DllImport("user32.dll")]
-                            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                        }
-"@
-[Window]::ShowWindow([Window]::GetForegroundWindow(), 6)'''], capture_output=True)
-                    
-            elif system_name == "Darwin":
-                subprocess.run(['osascript', '-e', 
-                    'tell application "System Events" to set miniaturized of window 1 of (first process whose frontmost is true) to true'])
-                
-            elif system_name == "Linux":
-                subprocess.run(['xdotool', 'getactivewindow', 'windowminimize'])
-                
-        except Exception as e:
-            print(f"Minimize error: {e}")
-    
-    def maximize_window(self):
-        """Maximize the active window"""
-        system_name = platform.system()
-        try:
-            if system_name == "Windows":
-                try:
-                    import pyautogui as pag
-                    pag.hotkey('win', 'up')
-                except ImportError:
-                    subprocess.run(['powershell', '-Command', 
-                        '''Add-Type @"
-                        using System;
-                        using System.Runtime.InteropServices;
-                        public class Window {
-                            [DllImport("user32.dll")]
-                            public static extern IntPtr GetForegroundWindow();
-                            [DllImport("user32.dll")]
-                            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-                        }
-"@
-[Window]::ShowWindow([Window]::GetForegroundWindow(), 3)'''], capture_output=True)
-                    
-            elif system_name == "Darwin":
-                subprocess.run(['osascript', '-e', 
-                    'tell application "System Events" to tell (first process whose frontmost is true) to set value of attribute "AXFullScreen" of window 1 to true'])
-                
-            elif system_name == "Linux":
-                subprocess.run(['wmctrl', '-r', ':ACTIVE:', '-b', 'add,maximized_vert,maximized_horz'])
-                
-        except Exception as e:
-            print(f"Maximize error: {e}")
     
     def run(self):
         """Main loop"""
         print("Gesture Mouse Controller Started!")
         print("\nGestures:")
         print("- Index finger up: Move cursor")
-        print("- Pinch (Thumb + Index): Left Click / Drag")
         print("- Two fingers up (Index + Middle): Right Click")
         print("- Three fingers up (Index + Middle + Ring): Double Click")
         print("- Four fingers up: Scroll (Upper box = Up, Lower box = Down)")
         print("- Thumbs Up: Volume increase")
         print("- Thumbs Down: Volume decrease")
-        print("- Open palm (fist to open): Maximize window")
-        print("- Close palm (open to fist): Minimize window")
         print("\nPress 'q' to quit")
         
         while True:
@@ -511,14 +419,14 @@ class GestureMouseController:
                     screen_x = np.clip(screen_x, 5, self.screen_width - 5)
                     screen_y = np.clip(screen_y, 5, self.screen_height - 5)
                     
-                    # Final cursor coordinates
-                    x, y = int(screen_x), int(screen_y)
+                    # Final cursor coordinates (Smoothed for stability)
+                    smooth_x, smooth_y = self.smooth_coordinates(int(screen_x), int(screen_y))
                     
                     # Draw virtual cursor indicator (reflects mapped desktop screen)
-                    # This shows where the mouse is on your actual monitor within the blue box
-                    indicator_x = int(np.interp(screen_x, (0, self.screen_width), (x1_box, x2_box)))
-                    indicator_y = int(np.interp(screen_y, (0, self.screen_height), (y1_box, y2_box)))
-                    cv2.circle(frame, (indicator_x, indicator_y), 8, (0, 0, 255), -1) # Red dot for virtual cursor
+                    # This shows exactly where the mouse is on your actual monitor
+                    indicator_x = int(np.interp(smooth_x, (0, self.screen_width), (x1_box, x2_box)))
+                    indicator_y = int(np.interp(smooth_y, (0, self.screen_height), (y1_box, y2_box)))
+                    cv2.circle(frame, (indicator_x, indicator_y), 8, (0, 0, 255), -1) # Red dot
                     
                     # Detect gesture
                     gesture = self.detect_gesture(landmarks)
@@ -528,45 +436,45 @@ class GestureMouseController:
                         # Split box into two 50% height regions
                         y_mid = (y1_box + y2_box) // 2
                         
-                        # Draw the regions (red boxes) only when scrolling
-                        # Upper box
+                        # Draw regions and labels
                         cv2.rectangle(frame, (x1_box, y1_box), (x2_box, y_mid), (0, 0, 255), 2)
-                        # Lower box
                         cv2.rectangle(frame, (x1_box, y_mid), (x2_box, y2_box), (0, 0, 255), 2)
-                        
-                        # Labels for the boxes
                         cv2.putText(frame, "Scroll Up", (x1_box + 5, y1_box + 25), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
                         cv2.putText(frame, "Scroll Down", (x1_box + 5, y_mid + 25), 
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
                         
-                        # Determine direction based on virtual cursor position
+                        # Use indicator_y (which is now smoothed) for direction
                         if indicator_y < y_mid:
                             self.execute_gesture("scroll_up")
                         else:
                             self.execute_gesture("scroll_down")
                     
                     # Display gesture on screen
-                    gesture_color = (0, 255, 0) if gesture == "move" else (0, 255, 255)
-                    if gesture in ["pinch", "double_pinch"]:
+                    gesture_color = (0, 255, 0) if "move" in gesture else (0, 255, 255)
+                    if "click" in gesture or "pinch" in gesture:
                         gesture_color = (255, 0, 255)  # Pink for clicks
                     
                     cv2.putText(frame, f"Gesture: {gesture}", (10, 30),
                                cv2.FONT_HERSHEY_SIMPLEX, 1, gesture_color, 2)
                     
-                    # Show pinch distance for debugging
+                    # Show pinch logic for debugging
                     if hasattr(self, 'pinch_frame_count'):
-                        cv2.putText(frame, f"Pinch: {self.pinch_frame_count}", (10, 70),
+                        cv2.putText(frame, f"Pinch Buffer: {self.click_frame_count if hasattr(self, 'click_frame_count') else 0}", (10, 70),
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                    if hasattr(self, 'current_pinch_dist'):
+                        cv2.putText(frame, f"Dist: {self.current_pinch_dist:.3f}", (10, 100),
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
                     
-                    # Move cursor if in move mode or clicking/dragging
-                    if gesture in ["move", "pinch", "pinch_hold"]:
-                        smooth_x, smooth_y = self.smooth_coordinates(x, y)
+                    # Move cursor for Move and None states
+                    # Clicks (Right/Double) are EXCLUDED to ensure precision (no sliding)
+                    if gesture in ["move", "none"]:
                         pyautogui.moveTo(smooth_x, smooth_y, duration=0)
                     
-                    # Execute other gestures
-                    elif gesture != "scroll":
-                        self.execute_gesture(gesture)
+                    # Execute discrete gestures (clicks, volume, etc)
+                    if gesture not in ["move", "none", "scroll"]:
+                        if "clicking" not in gesture and "held" not in gesture:
+                            self.execute_gesture(gesture)
             
             # Display frame
             cv2.imshow("Gesture Mouse Controller", frame)
