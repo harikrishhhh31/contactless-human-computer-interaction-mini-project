@@ -61,3 +61,6 @@ tzdata==2025.2
 tzlocal==5.3.1
 urllib3==2.5.0
 WMI==1.5.1
+faster-whisper==1.2.1
+pyaudio==0.2.14
+ctranslate2==4.7.1
