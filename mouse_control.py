@@ -160,8 +160,12 @@ class GestureMouseController:
         if index_open and middle_open and ring_open and pinky_open and not fingers[0]:
             current_candidate = "scroll"
         
-        # 7. Move (1 Finger - Index up, Middle/Ring/Pinky down)
-        elif index_open and not middle_open and not ring_open and not pinky_open:
+        # 7. Left Click (Index + Thumb)
+        elif index_open and fingers[0] and not middle_open and not ring_open and not pinky_open:
+            current_candidate = "left_click"
+
+        # 8. Move (1 Finger - Index up, Thumb/Middle/Ring/Pinky down)
+        elif index_open and not fingers[0] and not middle_open and not ring_open and not pinky_open:
             current_candidate = "move"
 
         # --- STABILITY & EXECUTION ---
@@ -185,6 +189,7 @@ class GestureMouseController:
         # For discrete actions (clicks), wait for confirmation threshold
         if self.click_frame_count == self.pinch_threshold:
             # This triggers exactly ONCE when the gesture becomes stable
+            if current_candidate == "left_click": self.last_left_state = True
             if current_candidate == "right_click": self.last_right_state = True
             if current_candidate == "double_pinch": self.last_double_state = True
             return current_candidate
@@ -199,6 +204,7 @@ class GestureMouseController:
             
         # Reset click tracking if we moved or stopped gesturing
         if current_candidate in ["none", "move"]:
+            self.last_left_state = False
             self.last_right_state = False
             self.last_double_state = False
 
@@ -272,6 +278,11 @@ class GestureMouseController:
             print("Right Click")
             return
             
+        elif gesture == "left_click":
+            pyautogui.click(button='left')
+            print("Left Click")
+            return
+            
         elif gesture == "double_pinch":
             pyautogui.doubleClick()
             print("Double Click")
@@ -317,6 +328,7 @@ class GestureMouseController:
         print("Gesture Mouse Controller Started!")
         print("\nGestures:")
         print("- Index finger up: Move cursor")
+        print("- Index + Thumb up: Left Click")
         print("- Two fingers up (Index + Middle): Right Click")
         print("- Three fingers up (Index + Middle + Ring): Double Click")
         print("- Four fingers up: Scroll (Upper box = Up, Lower box = Down)")
