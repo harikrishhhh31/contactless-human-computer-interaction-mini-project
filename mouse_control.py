@@ -29,6 +29,7 @@ class GestureMouseController:
         # Click detection
         self.click_threshold = 40
         self.is_clicking = False
+        self.left_button_down = False
         self.click_cooldown = 0
         self.last_pinch_state = False
         self.pinch_frame_count = 0
@@ -160,8 +161,12 @@ class GestureMouseController:
         if index_open and middle_open and ring_open and pinky_open and not fingers[0]:
             current_candidate = "scroll"
         
-        # 7. Move (1 Finger - Index up, Middle/Ring/Pinky down)
-        elif index_open and not middle_open and not ring_open and not pinky_open:
+        # 7. Left Click (Index + Thumb)
+        elif index_open and fingers[0] and not middle_open and not ring_open and not pinky_open:
+            current_candidate = "left_click"
+
+        # 8. Move (1 Finger - Index up, Thumb/Middle/Ring/Pinky down)
+        elif index_open and not fingers[0] and not middle_open and not ring_open and not pinky_open:
             current_candidate = "move"
 
         # --- STABILITY & EXECUTION ---
@@ -185,6 +190,7 @@ class GestureMouseController:
         # For discrete actions (clicks), wait for confirmation threshold
         if self.click_frame_count == self.pinch_threshold:
             # This triggers exactly ONCE when the gesture becomes stable
+            if current_candidate == "left_click": self.last_left_state = True
             if current_candidate == "right_click": self.last_right_state = True
             if current_candidate == "double_pinch": self.last_double_state = True
             return current_candidate
@@ -199,6 +205,7 @@ class GestureMouseController:
             
         # Reset click tracking if we moved or stopped gesturing
         if current_candidate in ["none", "move"]:
+            self.last_left_state = False
             self.last_right_state = False
             self.last_double_state = False
 
@@ -272,6 +279,13 @@ class GestureMouseController:
             print("Right Click")
             return
             
+        elif gesture == "left_click":
+            if not self.left_button_down:
+                pyautogui.mouseDown(button='left')
+                self.left_button_down = True
+                print("Left Click (Down)")
+            return
+            
         elif gesture == "double_pinch":
             pyautogui.doubleClick()
             print("Double Click")
@@ -317,6 +331,7 @@ class GestureMouseController:
         print("Gesture Mouse Controller Started!")
         print("\nGestures:")
         print("- Index finger up: Move cursor")
+        print("- Index + Thumb up: Left Click")
         print("- Two fingers up (Index + Middle): Right Click")
         print("- Three fingers up (Index + Middle + Ring): Double Click")
         print("- Four fingers up: Scroll (Upper box = Up, Lower box = Down)")
@@ -466,11 +481,17 @@ class GestureMouseController:
                         cv2.putText(frame, f"Dist: {self.current_pinch_dist:.3f}", (10, 100),
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
                     
-                    # Move cursor for Move and None states
+                    # Move cursor for Move, None, and Left Click (Dragging) states
                     # Clicks (Right/Double) are EXCLUDED to ensure precision (no sliding)
-                    if gesture in ["move", "none"]:
+                    if gesture in ["move", "none", "left_click", "left_click_held"]:
                         pyautogui.moveTo(smooth_x, smooth_y, duration=0)
                     
+                    # Handle releasing the mouse button (Drag and Drop)
+                    if self.left_button_down and gesture not in ["left_click", "left_click_held", "clicking"]:
+                        pyautogui.mouseUp(button='left')
+                        self.left_button_down = False
+                        print("Left Click (Up)")
+
                     # Execute discrete gestures (clicks, volume, etc)
                     if gesture not in ["move", "none", "scroll"]:
                         if "clicking" not in gesture and "held" not in gesture:
