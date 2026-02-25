@@ -29,6 +29,7 @@ class GestureMouseController:
         # Click detection
         self.click_threshold = 40
         self.is_clicking = False
+        self.left_button_down = False
         self.click_cooldown = 0
         self.last_pinch_state = False
         self.pinch_frame_count = 0
@@ -279,8 +280,10 @@ class GestureMouseController:
             return
             
         elif gesture == "left_click":
-            pyautogui.click(button='left')
-            print("Left Click")
+            if not self.left_button_down:
+                pyautogui.mouseDown(button='left')
+                self.left_button_down = True
+                print("Left Click (Down)")
             return
             
         elif gesture == "double_pinch":
@@ -478,11 +481,17 @@ class GestureMouseController:
                         cv2.putText(frame, f"Dist: {self.current_pinch_dist:.3f}", (10, 100),
                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
                     
-                    # Move cursor for Move and None states
+                    # Move cursor for Move, None, and Left Click (Dragging) states
                     # Clicks (Right/Double) are EXCLUDED to ensure precision (no sliding)
-                    if gesture in ["move", "none"]:
+                    if gesture in ["move", "none", "left_click", "left_click_held"]:
                         pyautogui.moveTo(smooth_x, smooth_y, duration=0)
                     
+                    # Handle releasing the mouse button (Drag and Drop)
+                    if self.left_button_down and gesture not in ["left_click", "left_click_held", "clicking"]:
+                        pyautogui.mouseUp(button='left')
+                        self.left_button_down = False
+                        print("Left Click (Up)")
+
                     # Execute discrete gestures (clicks, volume, etc)
                     if gesture not in ["move", "none", "scroll"]:
                         if "clicking" not in gesture and "held" not in gesture:
