@@ -6,9 +6,88 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HEISENBERG | ASSISTANT GUIDE</title>
     <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        #error-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .error-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 20px;
+        }
+        .error-icon {
+            font-size: 80px;
+            margin-bottom: 24px;
+        }
+        .error-title {
+            font-size: 32px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            color: #f43f5e;
+        }
+        .error-details {
+            background: #fef2f2;
+            border: 2px solid #f43f5e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 32px;
+        }
+        .error-details p {
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 8px;
+        }
+        .error-details code {
+            background: #fee2e2;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: 700;
+        }
+        .retry-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: #f43f5e;
+            color: white;
+            border: 2px solid #0f172a;
+            box-shadow: 6px 6px 0px #0f172a;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+    </style>
 </head>
 
 <body>
+    <div id="error-overlay" style="display: none;">
+        <div class="error-container">
+            <div class="error-icon">⚠️</div>
+            <h1 class="error-title">Connection Error</h1>
+            <div class="error-details">
+                <p>The server is not running or cannot be reached.</p>
+                <p>Make sure to start the server first:</p>
+                <p><code>py main_web.py</code></p>
+            </div>
+            <button class="retry-btn" onclick="location.reload()">
+                🔄 Retry Connection
+            </button>
+        </div>
+    </div>
+
     <div class="container">
         <div class="welcome-container">
             <h1 class="welcome-title">HEISENBERG</h1>
@@ -28,6 +107,24 @@
             Control your system using natural gestures and voice commands. 🚀
         </div>
     </div>
+
+    <script>
+        // Check if server is connected by testing CSS loading
+        window.onerror = function(msg, url, line, col, error) {
+            document.getElementById('error-overlay').style.display = 'flex';
+            document.querySelector('.container').style.display = 'none';
+            return true;
+        };
+        
+        // Also check after load
+        window.onload = function() {
+            fetch('../assets/css/style.css', { method: 'HEAD' })
+                .catch(function() {
+                    document.getElementById('error-overlay').style.display = 'flex';
+                    document.querySelector('.container').style.display = 'none';
+                });
+        };
+    </script>
 
     <script src="../assets/js/app.js"></script>
 </body>
