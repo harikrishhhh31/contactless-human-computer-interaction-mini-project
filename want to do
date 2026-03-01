@@ -1,0 +1,14 @@
+MOUSE 
+
+want to store the sensititly box as in seperate json (needed for settings)
+
+till now we developed it as os independend but not tested other then windows os 
+
+
+VOICE 
+
+for running network is needed , we want to replace it . 
+
+if required intenet to find the execution cmd of the software , 
+so store the exection cmd on seperate file and use it if network is unavailable 
+
