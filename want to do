@@ -12,3 +12,5 @@ for running network is needed , we want to replace it .
 if required intenet to find the execution cmd of the software , 
 so store the exection cmd on seperate file and use it if network is unavailable 
 
+
+here except OPEN , CLOSE , AND dictation , remaining all are os independend
