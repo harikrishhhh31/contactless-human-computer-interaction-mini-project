@@ -64,3 +64,6 @@ WMI==1.5.1
 faster-whisper==1.2.1
 pyaudio==0.2.14
 ctranslate2==4.7.1
+pywebview
+fastapi
+uvicorn
