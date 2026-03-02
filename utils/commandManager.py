@@ -4,6 +4,15 @@ import subprocess
 from utils.systemMonitor import SystemMonitor
 from utils.keyboardInput import KeyboardInput
 
+try:
+    from win10toast import ToastNotifier
+    toaster = ToastNotifier()
+    def show_notification(title, message):
+        toaster.show_toast(title, message, duration=3)
+except ImportError:
+    def show_notification(title, message):
+        print(f"[NOTIFICATION] {title}: {message}")
+
 class CommandManager(SystemMonitor , KeyboardInput):
     
     def __init__(self):
@@ -378,6 +387,7 @@ class CommandManager(SystemMonitor , KeyboardInput):
 
     def start_dictation_mode(self):
         """Enter dictation mode where speech is typed directly"""
+        show_notification("Voice Assistant", "Dictation mode activated")
         self.speak("Dictation mode on")
         
         while True:
@@ -389,6 +399,7 @@ class CommandManager(SystemMonitor , KeyboardInput):
                     
                 # Check for exit command
                 if text in ["kc end", "casey end", "kay see end", "stop dictation", "end dictation"]:
+                    show_notification("Voice Assistant", "Dictation mode deactivated")
                     self.speak("Dictation mode off")
                     break
                 
