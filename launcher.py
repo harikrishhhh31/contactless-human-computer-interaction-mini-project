@@ -10,6 +10,10 @@ PROJECT_ROOT = Path(__file__).parent
 MOUSE_SETTINGS = PROJECT_ROOT / "mouse_settings.json"
 VOICE_SETTINGS = PROJECT_ROOT / "voice_settings.json"
 
+def log_output(name, stream, prefix):
+    for line in stream:
+        print(f"[{prefix}] {line}", end="")
+
 class HeisenbergLauncher:
     def __init__(self):
         self.processes = {}
@@ -43,18 +47,24 @@ class HeisenbergLauncher:
                     cwd=cwd,
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
                     stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1
                 )
             else:
                 proc = subprocess.Popen(
                     command,
                     cwd=cwd,
                     stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1
                 )
             self.processes[name] = proc
+            thread = threading.Thread(target=log_output, args=(name, proc.stdout, name.upper()), daemon=True)
+            thread.start()
             print(f"[LAUNCHER] {name} started (PID: {proc.pid})")
             return proc
         except Exception as e:
