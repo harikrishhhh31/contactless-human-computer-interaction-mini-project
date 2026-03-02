@@ -1,9 +1,41 @@
 from faster_whisper import WhisperModel
 import torch
 import numpy as np
+import os
+import json
+
+SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'voice_settings.json')
+
+DEFAULT_SETTINGS = {
+    "voice": {
+        "silence_threshold": 0.8,
+        "model_size": "turbo"
+    }
+}
+
+def load_settings():
+    if not os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(DEFAULT_SETTINGS, f, indent=2)
+        print(f"Created default settings file: {SETTINGS_FILE}")
+        return DEFAULT_SETTINGS
+    
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            settings = json.load(f)
+        print(f"Loaded settings from: {SETTINGS_FILE}")
+        return settings
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading settings: {e}. Using defaults.")
+        return DEFAULT_SETTINGS
+
 
 class WhisperInference:
-    def __init__(self, model_size="turbo", device="cuda", compute_type="float16"):
+    def __init__(self, model_size=None, device="cuda", compute_type="float16"):
+        if model_size is None:
+            settings = load_settings()
+            model_size = settings.get("voice", {}).get("model_size", "turbo")
+        
         print(f"Loading Whisper model '{model_size}' on {device} ({compute_type})...")
         self.model = WhisperModel(
             model_size, 

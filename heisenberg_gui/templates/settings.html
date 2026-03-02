@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SETTINGS | HEISENBERG</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        .settings-section {
+            background: var(--bg-card);
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--shadow-color);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .settings-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .settings-title-icon {
+            font-size: 24px;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .setting-description {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 8px;
+            background: #e2e8f0;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-cyan);
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--text-primary);
+            background: #e2e8f0;
+            padding: 4px 8px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .radio-option input {
+            display: none;
+        }
+
+        .radio-option label {
+            display: block;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .radio-option input:checked + label {
+            background: var(--accent-cyan);
+            box-shadow: 4px 4px 0px var(--shadow-color);
+            transform: translate(-2px, -2px);
+        }
+
+        .radio-option label:hover {
+            background: #e2e8f0;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .save-btn {
+            flex: 1;
+            padding: 16px 32px;
+            background: var(--accent-cyan);
+            color: var(--text-primary);
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: 6px 6px 0px var(--shadow-color);
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.15s ease;
+        }
+
+        .save-btn:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0px var(--shadow-color);
+        }
+
+        .reset-btn {
+            padding: 16px 32px;
+            background: #f8fafc;
+            color: var(--text-primary);
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: 4px 4px 0px var(--shadow-color);
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.15s ease;
+        }
+
+        .reset-btn:hover {
+            background: #fee2e2;
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px var(--shadow-color);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 16px 24px;
+            background: var(--text-primary);
+            color: white;
+            border-radius: 8px;
+            font-weight: 700;
+            display: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .toast.success {
+            background: #22c55e;
+        }
+
+        .toast.error {
+            background: #f43f5e;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        .section-divider {
+            height: 2px;
+            background: var(--border-color);
+            margin: 32px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-btn" onclick="navigateTo('index.html')">
+                BACK
+            </button>
+            <h1 class="page-title">Settings</h1>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-title">
+                <span class="settings-title-icon">&#9995;</span>
+                Mouse Control
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-label">Cursor Speed</label>
+                <div class="setting-description">How fast the cursor responds to hand movements</div>
+                <div class="slider-container">
+                    <span style="font-size: 12px;">Slow</span>
+                    <input type="range" class="slider" id="cursorSpeed" min="1" max="10" value="5">
+                    <span style="font-size: 12px;">Fast</span>
+                    <span class="slider-value" id="cursorSpeedValue">5</span>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-label">Control Area</label>
+                <div class="setting-description">Size of the camera control area (larger = more precision)</div>
+                <div class="slider-container">
+                    <span style="font-size: 12px;">Small</span>
+                    <input type="range" class="slider" id="controlArea" min="0.3" max="0.9" step="0.1" value="0.6">
+                    <span style="font-size: 12px;">Large</span>
+                    <span class="slider-value" id="controlAreaValue">0.6</span>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-label">Click Sensitivity</label>
+                <div class="setting-description">How easily clicks are triggered</div>
+                <div class="slider-container">
+                    <span style="font-size: 12px;">Low</span>
+                    <input type="range" class="slider" id="clickSensitivity" min="20" max="80" value="40">
+                    <span style="font-size: 12px;">High</span>
+                    <span class="slider-value" id="clickSensitivityValue">40</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-title">
+                <span class="settings-title-icon">&#127908;</span>
+                Voice
+            </div>
+
+            <div class="setting-item">
+                <label class="setting-label">Pause Detection</label>
+                <div class="setting-description">How long to wait before finalizing speech (seconds)</div>
+                <div class="slider-container">
+                    <span style="font-size: 12px;">Short</span>
+                    <input type="range" class="slider" id="silenceThreshold" min="0.3" max="2.0" step="0.1" value="0.8">
+                    <span style="font-size: 12px;">Long</span>
+                    <span class="slider-value" id="silenceThresholdValue">0.8s</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-row">
+            <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+            <button class="reset-btn" onclick="resetSettings()">Reset to Defaults</button>
+        </div>
+
+        <div class="footer">
+            Changes take effect after restarting the application.
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="../assets/js/app.js"></script>
+    <script>
+        let currentSettings = {};
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                currentSettings = await response.json();
+                applySettingsToUI();
+            } catch (error) {
+                showToast('Failed to load settings', 'error');
+            }
+        }
+
+        function applySettingsToUI() {
+            const mouse = currentSettings.mouse || {};
+            const voice = currentSettings.voice || {};
+            const cursor = mouse.cursor || {};
+            const control = mouse.control || {};
+            const voiceSettings = voice.voice || {};
+
+            document.getElementById('cursorSpeed').value = cursor.smooth_factor || 5;
+            document.getElementById('cursorSpeedValue').textContent = cursor.smooth_factor || 5;
+
+            document.getElementById('controlArea').value = control.box_size || 0.6;
+            document.getElementById('controlAreaValue').textContent = control.box_size || 0.6;
+
+            document.getElementById('clickSensitivity').value = cursor.click_threshold || 40;
+            document.getElementById('clickSensitivityValue').textContent = cursor.click_threshold || 40;
+
+            document.getElementById('silenceThreshold').value = voiceSettings.silence_threshold || 0.8;
+            document.getElementById('silenceThresholdValue').textContent = (voiceSettings.silence_threshold || 0.8) + 's';
+        }
+
+        async function saveSettings() {
+            const mouseSettings = {
+                cursor: {
+                    smooth_factor: parseInt(document.getElementById('cursorSpeed').value),
+                    click_threshold: parseInt(document.getElementById('clickSensitivity').value),
+                    pinch_threshold: 3
+                },
+                gesture: {
+                    detection_confidence: 0.7,
+                    tracking_confidence: 0.7,
+                    hold_time: 0.5
+                },
+                control: {
+                    box_size: parseFloat(document.getElementById('controlArea').value),
+                    box_from_top: 0.45,
+                    volume_step: 0.05,
+                    scroll_amount: 150,
+                    acceleration_threshold: 1.5,
+                    acceleration_multiplier: 2
+                }
+            };
+
+            const voiceSettings = {
+                voice: {
+                    silence_threshold: parseFloat(document.getElementById('silenceThreshold').value),
+                    model_size: "turbo"
+                }
+            };
+
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mouse: mouseSettings, voice: voiceSettings })
+                });
+                const result = await response.json();
+                showToast(result.message, 'success');
+            } catch (error) {
+                showToast('Failed to save settings', 'error');
+            }
+        }
+
+        async function resetSettings() {
+            try {
+                const response = await fetch('/api/settings/reset', { method: 'POST' });
+                const result = await response.json();
+                showToast(result.message, 'success');
+                loadSettings();
+            } catch (error) {
+                showToast('Failed to reset settings', 'error');
+            }
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        document.getElementById('cursorSpeed').addEventListener('input', function() {
+            document.getElementById('cursorSpeedValue').textContent = this.value;
+        });
+
+        document.getElementById('controlArea').addEventListener('input', function() {
+            document.getElementById('controlAreaValue').textContent = this.value;
+        });
+
+        document.getElementById('clickSensitivity').addEventListener('input', function() {
+            document.getElementById('clickSensitivityValue').textContent = this.value;
+        });
+
+        document.getElementById('silenceThreshold').addEventListener('input', function() {
+            document.getElementById('silenceThresholdValue').textContent = this.value + 's';
+        });
+
+        loadSettings();
+    </script>
+</body>
+
+</html>

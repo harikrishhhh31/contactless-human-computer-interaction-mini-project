@@ -7,56 +7,90 @@ import platform
 import subprocess
 import threading
 import queue
+import json
+import os
+
+SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mouse_settings.json')
+
+DEFAULT_SETTINGS = {
+    "cursor": {
+        "smooth_factor": 5,
+        "click_threshold": 40,
+        "pinch_threshold": 3
+    },
+    "gesture": {
+        "detection_confidence": 0.7,
+        "tracking_confidence": 0.7,
+        "hold_time": 0.5
+    },
+    "control": {
+        "box_size": 0.6,
+        "box_from_top": 0.45,
+        "volume_step": 0.05,
+        "scroll_amount": 150,
+        "acceleration_threshold": 1.5,
+        "acceleration_multiplier": 2
+    }
+}
+
+def load_settings():
+    if not os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(DEFAULT_SETTINGS, f, indent=2)
+        print(f"Created default settings file: {SETTINGS_FILE}")
+        return DEFAULT_SETTINGS
+    
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            settings = json.load(f)
+        print(f"Loaded settings from: {SETTINGS_FILE}")
+        return settings
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading settings: {e}. Using defaults.")
+        return DEFAULT_SETTINGS
 
 class GestureMouseController:
     def __init__(self):
-        # Initialize MediaPipe
+        self.settings = load_settings()
+        
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
             max_num_hands=1,
-            min_detection_confidence=0.7,
-            min_tracking_confidence=0.7
+            min_detection_confidence=self.settings["gesture"]["detection_confidence"],
+            min_tracking_confidence=self.settings["gesture"]["tracking_confidence"]
         )
         self.mp_draw = mp.solutions.drawing_utils
         
-        # Screen dimensions
         self.screen_width, self.screen_height = pyautogui.size()
         
-        # Smoothing variables
         self.prev_x, self.prev_y = 0, 0
-        self.smooth_factor = 5
+        self.smooth_factor = self.settings["cursor"]["smooth_factor"]
         
-        # Click detection
-        self.click_threshold = 40
+        self.click_threshold = self.settings["cursor"]["click_threshold"]
         self.is_clicking = False
         self.left_button_down = False
         self.click_cooldown = 0
         self.last_pinch_state = False
         self.pinch_frame_count = 0
-        self.pinch_threshold = 3  # Number of consecutive frames to confirm pinch
+        self.pinch_threshold = self.settings["cursor"]["pinch_threshold"]
         
-        # Gesture state
         self.prev_gesture = None
         self.gesture_start_time = 0
-        self.gesture_hold_time = 0.5  # seconds
+        self.gesture_hold_time = self.settings["gesture"]["hold_time"]
         
-        # Camera setup
         self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         
-        # Command Queue for Background Execution (Fix Latency)
         self.cmd_queue = queue.Queue()
         self.worker_thread = threading.Thread(target=self.command_worker, daemon=True)
         self.worker_thread.start()
         
-        # Acceleration logic
         self.gesture_hold_start = 0
         self.current_held_gesture = None
         self.last_cmd_time = 0
         self.last_hand_y = 0
         
-        # Performance settings
         pyautogui.FAILSAFE = False
         pyautogui.PAUSE = 0
         
@@ -232,44 +266,37 @@ class GestureMouseController:
                 print(f"Worker error: {e}")
 
     def execute_gesture(self, gesture):
-        """Handle gesture execution with background processing and 8x acceleration"""
         current_time = time.time()
         
-        # 1. Acceleration Logic
         if gesture == self.current_held_gesture and gesture != "none":
-            # Gesture is being held
             hold_duration = current_time - self.gesture_hold_start
-            # If held for more than 1.5 seconds, use 2x multiplier
-            multiplier = 2 if hold_duration > 1.5 else 1
+            multiplier = self.settings["control"]["acceleration_multiplier"] if hold_duration > self.settings["control"]["acceleration_threshold"] else 1
         else:
-            # New gesture started
             self.current_held_gesture = gesture
             self.gesture_hold_start = current_time
             multiplier = 1
 
-        # 2. Command Throttling
         if gesture in ["thumbs_up", "thumbs_down", "scroll_up", "scroll_down"]:
-            # Scrolling needs faster response for smoothness
             cooldown = 0.05 if "scroll" in gesture else 0.15
             
             if current_time - self.last_cmd_time > cooldown:
                 self.last_cmd_time = current_time
                 
                 if gesture == "thumbs_up":
-                    self.cmd_queue.put(("volume", "increase", 0.05 * multiplier))
-                    print(f"Volume Up {'(x8)' if multiplier > 1 else ''}")
+                    self.cmd_queue.put(("volume", "increase", self.settings["control"]["volume_step"] * multiplier))
+                    print(f"Volume Up {'(x' + str(multiplier) + ')' if multiplier > 1 else ''}")
                 
                 elif gesture == "thumbs_down":
-                    self.cmd_queue.put(("volume", "decrease", 0.05 * multiplier))
-                    print(f"Volume Down {'(x8)' if multiplier > 1 else ''}")
+                    self.cmd_queue.put(("volume", "decrease", self.settings["control"]["volume_step"] * multiplier))
+                    print(f"Volume Down {'(x' + str(multiplier) + ')' if multiplier > 1 else ''}")
                 
                 elif gesture == "scroll_up":
-                    self.cmd_queue.put(("scroll", None, 150 * multiplier))
-                    print(f"Scroll Up {'(x8)' if multiplier > 1 else ''}")
+                    self.cmd_queue.put(("scroll", None, self.settings["control"]["scroll_amount"] * multiplier))
+                    print(f"Scroll Up {'(x' + str(multiplier) + ')' if multiplier > 1 else ''}")
                 
                 elif gesture == "scroll_down":
-                    self.cmd_queue.put(("scroll", None, -150 * multiplier))
-                    print(f"Scroll Down {'(x8)' if multiplier > 1 else ''}")
+                    self.cmd_queue.put(("scroll", None, -self.settings["control"]["scroll_amount"] * multiplier))
+                    print(f"Scroll Down {'(x' + str(multiplier) + ')' if multiplier > 1 else ''}")
             
             return
         
@@ -361,11 +388,8 @@ class GestureMouseController:
             # Screen aspect ratio for box calculation
             screen_aspect = self.screen_width / self.screen_height
             
-            # Calculate box dimensions centered in frame
-            # Use 70% of the relevant dimension
-            base_percent = 0.6
-            # how much the box should be below from the top 
-            from_top = 0.45
+            base_percent = self.settings["control"]["box_size"]
+            from_top = self.settings["control"]["box_from_top"]
             if (w / h) > screen_aspect:
                 # Frame is wider than screen
                 box_h = h * base_percent

@@ -2,18 +2,46 @@ import os
 import sys
 import time
 import threading
+import json
 from .audio_streamer import AudioStreamer
 from .inference_engine import WhisperInference
 from .streaming_manager import StreamingManager
 
+SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'voice_settings.json')
+
+DEFAULT_SETTINGS = {
+    "voice": {
+        "silence_threshold": 0.8,
+        "model_size": "turbo"
+    }
+}
+
+def load_voice_settings():
+    if not os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(DEFAULT_SETTINGS, f, indent=2)
+        print(f"Created default settings file: {SETTINGS_FILE}")
+        return DEFAULT_SETTINGS
+    
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            settings = json.load(f)
+        print(f"Loaded voice settings from: {SETTINGS_FILE}")
+        return settings
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"Error loading voice settings: {e}. Using defaults.")
+        return DEFAULT_SETTINGS
+
 class DictationApp:
     def __init__(self):
+        voice_settings = load_voice_settings()
+        
         self.streamer = AudioStreamer()
         self.engine = WhisperInference()
         self.manager = StreamingManager(self.engine)
         self.is_running = False
         self.last_audio_time = time.time()
-        self.silence_threshold_s = 0.8 # VAD finalized after 800ms silence
+        self.silence_threshold_s = voice_settings.get("voice", {}).get("silence_threshold", 0.8)
 
     def run(self):
         self.is_running = True
