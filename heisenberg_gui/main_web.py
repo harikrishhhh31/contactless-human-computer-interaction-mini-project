@@ -56,7 +56,7 @@ async def update_settings(request: Request):
     if "voice" in data:
         save_json_file(VOICE_SETTINGS_FILE, data["voice"])
     
-    return {"status": "success", "message": "Settings saved. Restart the application for changes to take effect."}
+    return {"status": "success", "message": "Settings saved. Mouse and voice will restart automatically."}
 
 @app.post("/api/settings/reset")
 async def reset_settings():
