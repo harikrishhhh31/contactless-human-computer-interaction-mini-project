@@ -10,5 +10,3 @@ uvicorn
 speech-recognition
 pyttsx3
 pywhatkit
-win10toast
-torch
