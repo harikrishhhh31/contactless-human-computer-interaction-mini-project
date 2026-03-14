@@ -2,7 +2,8 @@
   "cursor": {
     "smooth_factor": 5,
     "click_threshold": 40,
-    "pinch_threshold": 3
+    "pinch_threshold": 3,
+    "left_click_hold_delay": 0.3
   },
   "gesture": {
     "detection_confidence": 0.7,

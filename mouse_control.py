@@ -16,7 +16,8 @@ DEFAULT_SETTINGS = {
     "cursor": {
         "smooth_factor": 5,
         "click_threshold": 40,
-        "pinch_threshold": 3
+        "pinch_threshold": 3,
+        "left_click_hold_delay": 0.3
     },
     "gesture": {
         "detection_confidence": 0.7,
@@ -67,12 +68,14 @@ class GestureMouseController:
         self.smooth_factor = self.settings["cursor"]["smooth_factor"]
         
         self.click_threshold = self.settings["cursor"]["click_threshold"]
+        self.left_click_hold_delay = self.settings["cursor"].get("left_click_hold_delay", 0.3)
         self.is_clicking = False
         self.left_button_down = False
         self.click_cooldown = 0
         self.last_pinch_state = False
         self.pinch_frame_count = 0
         self.pinch_threshold = self.settings["cursor"]["pinch_threshold"]
+        self.left_click_hold_start = 0
         
         self.prev_gesture = None
         self.gesture_start_time = 0
@@ -267,7 +270,26 @@ class GestureMouseController:
 
     def execute_gesture(self, gesture):
         current_time = time.time()
-        
+
+        # --- handle left-click transitions ---
+        # if we just left the left_click gesture, decide whether to send a click or release
+        if getattr(self, 'prev_gesture', None) == "left_click" and gesture != "left_click":
+            elapsed = current_time - self.left_click_hold_start
+            if self.left_button_down:
+                pyautogui.mouseUp()
+                self.left_button_down = False
+            else:
+                if elapsed < self.left_click_hold_delay:
+                    pyautogui.click()
+            self.left_click_hold_start = 0
+
+        # if we just entered left_click, start timing
+        if gesture == "left_click" and getattr(self, 'prev_gesture', None) != "left_click":
+            self.left_click_hold_start = current_time
+
+        # update prev_gesture for next call
+        self.prev_gesture = gesture
+
         if gesture == self.current_held_gesture and gesture != "none":
             hold_duration = current_time - self.gesture_hold_start
             multiplier = self.settings["control"]["acceleration_multiplier"] if hold_duration > self.settings["control"]["acceleration_threshold"] else 1
@@ -307,10 +329,17 @@ class GestureMouseController:
             return
             
         elif gesture == "left_click":
+            # Start tracking left click timing on first detection
+            if self.current_held_gesture != "left_click":
+                self.left_click_hold_start = current_time
+            
+            # Only trigger mouseDown after the hold delay threshold
             if not self.left_button_down:
-                pyautogui.mouseDown(button='left')
-                self.left_button_down = True
-                print("Left Click (Down)")
+                hold_elapsed = current_time - self.left_click_hold_start
+                if hold_elapsed >= self.left_click_hold_delay:
+                    pyautogui.mouseDown(button='left')
+                    self.left_button_down = True
+                    print(f"Left Click (Down) - after {hold_elapsed:.2f}s delay")
             return
             
         elif gesture == "double_pinch":
