@@ -1,10 +1,24 @@
 # Contactless Human-Computer Interaction (Heisenberg)
 
-A sophisticated system for controlling your Windows PC using hand gestures and voice commands. This project combines computer vision (MediaPipe/OpenCV) and speech recognition to provide a seamless, touchless interface for daily computing tasks.
+A sophisticated system for controlling your computer using hand gestures and voice commands. Heisenberg provides a seamless, touchless interface for daily computing tasks by combining Computer Vision (MediaPipe/OpenCV) with high-accuracy Speech Recognition.
 
-## Key Features
+---
 
-###  Hand Gesture Control
+## 🚀 Quick Start (Recommended)
+
+To set up and run the entire system with a single command:
+
+```bash
+python run.py
+```
+
+*This script will automatically create a virtual environment, install all required dependencies, and launch all services.*
+
+---
+
+## ✨ Key Features
+
+### ✋ Hand Gesture Control
 Master your mouse and system settings through intuitive hand movements:
 - **Cursor Movement**: Move your index finger within the tracking box.
 - **Right Click**: Raise both Index and Middle fingers.
@@ -12,55 +26,78 @@ Master your mouse and system settings through intuitive hand movements:
 - **Volume Control**: 
   - **Thumbs Up**: Increase volume.
   - **Thumbs Down**: Decrease volume.
-- **Scrolling**: Raise four fingers (Index, Middle, Ring, Pinky) and move the hand to the top or bottom half of the tracking box.
+- **Scrolling**: Raise four fingers (Index, Middle, Ring, Pinky) and move your hand to the top or bottom half of the tracking box.
 
-###  Voice Assistant (Heisenberg)
-A powerful voice-controlled manager for your applications and information:
+### 🎙️ Voice Assistant (Heisenberg)
+A powerful command manager with smart context awareness:
+- **Smart Window Control**: Point your cursor at any window and say **"maximize"**, **"minimize"**, or **"close"**. The assistant will act on the window under your mouse!
 - **Application Control**: "open Notepad", "open Chrome", "close Chrome".
 - **Web Search**: "google [query]", "search for [query]", "play [video] on YouTube".
-- **System Commands**: "maximize window", "minimize window", "switch window", "what's the time", "what's the date".
 - **Dictation Mode**: Say "kc mode" to start typing using your voice. Exit by saying "kc end".
 
-## Technology Stack
+### 🖼️ Desktop GUI Window
+A native desktop window for easy access. If you close it, you can reopen it anytime by running:
+
+```bash
+python heisenberg_gui/main_gui.py
+```
+
+---
+
+## 🛠️ Technology Stack
 - **Languages**: Python
 - **Vision**: OpenCV, MediaPipe
-- **Voice**: SpeechRecognition, pyttsx3, PyAudio
-- **OS Interaction**: PyAutoGUI, pycaw, psutil, pywin32, WMI
+- **Voice**: Faster-Whisper, SpeechRecognition, pyttsx3
+- **OS Interaction**: PyAutoGUI, pycaw, psutil, pywin32, xdotool (Linux)
+- **Web**: FastAPI, pywebview
 
-##  Setup & Installation
+---
+
+## 📥 Setup & Installation
 
 ### Prerequisites
-- Windows OS
-- Python 3.10 or higher
-- Webcam and Microphone
+- **Python**: 3.10 or higher
+- **Hardware**: Webcam and Microphone
+- **Linux Users**: Install `xdotool` (`sudo apt install xdotool`)
+- **Windows Users**: Ensure `pywin32` is available.
 
-### Installation
-1. Clone the repository to your local machine.
-2. Create and activate a virtual environment:
-   ```powershell
-   python -m venv venv
-   .\venv\Scripts\activate
-   ```
-3. Install the required dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
+---
 
-##  How to Run
+## ▶️ How to Run
 
-The project includes batch files for easy execution:
+```bash
+python run.py
+```
+---
+## 📁 Project Structure
 
-- **Hand Control**: Run `mouse.bat` or execute `python mouse_control.py`.
-- **Voice Assistant**: Run `voice.bat` or execute `python heisenberg.py`.
+| File | Description |
+|------|-------------|
+| `run.py` | Auto setup & launcher - creates venv, installs deps, runs everything |
+| `launcher_no_gui.py` | Master process manager - starts all 4 services |
+| `mouse_ctl_no_gui.py` | Hand gesture control (no camera view) |
+| `heisenberg.py` | Voice assistant |
+| `heisenberg_gui/main_web.py` | Web server (FastAPI) |
+| `heisenberg_gui/main_gui.py` | Desktop GUI window (pywebview) |
+| `config/` | Settings folder (`mouse_settings.json`, `voice_settings.json`) |
+| `utils/` | Command manager, system monitor, keyboard input |
 
-### Tips for Best Performance
-- **Lighting**: Ensure your hand is well-lit for accurate tracking.
-- **Background**: A neutral background improves gesture recognition.
-- **Voice**: Speak clearly; the assistant uses Google's speech recognition engine (requires internet connection).
+---
 
-##  Project Structure
-- `mouse_control.py`: The main engine for hand tracking and mouse emulation.
-- `heisenberg.py`: The entry point for the voice assistant.
-- `utils/commandManager.py`: Logic for processing voice commands and system interactions.
-- `utils/keyboardInput.py`: Handles typing and dictation functionality.
-- `utils/systemMonitor.py`: Provides system-level information.
+## ⚙️ Settings
+
+Configuration files are located in the `config/` folder:
+
+| File | Purpose |
+|------|-------------|
+| `config/mouse_settings.json` | Mouse sensitivity, gesture thresholds, scroll speed |
+| `config/voice_settings.json` | Voice model size, silence threshold |
+
+Edit these files directly or use the web dashboard at http://127.0.0.1:8000
+
+---
+
+## ⚡ Performance Tips
+- **Lighting**: Bright, even lighting significantly improves hand tracking accuracy.
+- **Microphone**: For best voice recognition, use a dedicated microphone and speak clearly.
+- **Internet**: An active connection is required for high-quality speech-to-text.
