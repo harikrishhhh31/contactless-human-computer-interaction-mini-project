@@ -11,8 +11,8 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'assets')
 
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-MOUSE_SETTINGS_FILE = os.path.join(PROJECT_ROOT, 'mouse_settings.json')
-VOICE_SETTINGS_FILE = os.path.join(PROJECT_ROOT, 'voice_settings.json')
+MOUSE_SETTINGS_FILE = os.path.join(PROJECT_ROOT, 'config', 'mouse_settings.json')
+VOICE_SETTINGS_FILE = os.path.join(PROJECT_ROOT, 'config', 'voice_settings.json')
 
 DEFAULT_MOUSE_SETTINGS = {
     "cursor": {"smooth_factor": 5, "click_threshold": 40, "pinch_threshold": 3},
@@ -26,6 +26,7 @@ DEFAULT_VOICE_SETTINGS = {
 
 def load_json_file(filepath, defaults):
     if not os.path.exists(filepath):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, 'w') as f:
             json.dump(defaults, f, indent=2)
         return defaults
