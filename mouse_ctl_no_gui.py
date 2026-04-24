@@ -10,7 +10,7 @@ import queue
 import json
 import os
 
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mouse_settings.json')
+SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'mouse_settings.json')
 
 DEFAULT_SETTINGS = {
     "cursor": {
@@ -36,6 +36,7 @@ DEFAULT_SETTINGS = {
 
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
+        os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
         with open(SETTINGS_FILE, 'w') as f:
             json.dump(DEFAULT_SETTINGS, f, indent=2)
         return DEFAULT_SETTINGS

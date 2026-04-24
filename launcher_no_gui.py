@@ -7,8 +7,8 @@ import threading
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent
-MOUSE_SETTINGS = PROJECT_ROOT / "mouse_settings.json"
-VOICE_SETTINGS = PROJECT_ROOT / "voice_settings.json"
+MOUSE_SETTINGS = PROJECT_ROOT / "config" / "mouse_settings.json"
+VOICE_SETTINGS = PROJECT_ROOT / "config" / "voice_settings.json"
 
 # synchronize prints from multiple threads
 output_lock = threading.Lock()
