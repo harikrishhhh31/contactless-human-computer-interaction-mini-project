@@ -135,6 +135,10 @@ class HeisenbergLauncher:
         self.start_process("mouse", [sys.executable, "mouse_ctl_no_gui.py"], cwd=PROJECT_ROOT)
         
         self.start_process("voice", [sys.executable, "heisenberg.py"], cwd=PROJECT_ROOT)
+
+        # Start GUI after 0.5s delay
+        time.sleep(0.5)
+        self.start_process("gui", [sys.executable, "heisenberg_gui/main_gui.py"], cwd=PROJECT_ROOT)
     
     def stop_all(self):
         print("\n[LAUNCHER] Shutting down...")
@@ -158,13 +162,29 @@ class HeisenbergLauncher:
     def check_processes(self):
         for name, proc in list(self.processes.items()):
             if proc.poll() is not None:
-                print(f"[LAUNCHER] {name} crashed, restarting...")
-                if name == "webserver":
-                    self.start_process(name, [sys.executable, "heisenberg_gui/main_web.py"], cwd=PROJECT_ROOT)
-                elif name == "mouse":
-                    self.start_process(name, [sys.executable, "mouse_ctl_no_gui.py"], cwd=PROJECT_ROOT)
-                elif name == "voice":
-                    self.start_process(name, [sys.executable, "heisenberg.py"], cwd=PROJECT_ROOT)
+                exit_code = proc.returncode
+                
+                # Only restart GUI if it crashed (non-zero exit code)
+                # Others restart regardless (current behavior)
+                if name != "gui" or exit_code != 0:
+                    if exit_code != 0:
+                        print(f"[LAUNCHER] {name} crashed (exit code: {exit_code}), restarting...")
+                    else:
+                        print(f"[LAUNCHER] {name} exited, restarting...")
+                        
+                    if name == "webserver":
+                        self.start_process(name, [sys.executable, "heisenberg_gui/main_web.py"], cwd=PROJECT_ROOT)
+                    elif name == "mouse":
+                        self.start_process(name, [sys.executable, "mouse_ctl_no_gui.py"], cwd=PROJECT_ROOT)
+                    elif name == "voice":
+                        self.start_process(name, [sys.executable, "heisenberg.py"], cwd=PROJECT_ROOT)
+                    elif name == "gui":
+                        self.start_process(name, [sys.executable, "heisenberg_gui/main_gui.py"], cwd=PROJECT_ROOT)
+                else:
+                    with output_lock:
+                        print(f"[LAUNCHER] {name} closed normally (exit code 0), not restarting.")
+                        sys.stdout.flush()
+                    del self.processes[name]
     
     def run(self):
         with output_lock:
