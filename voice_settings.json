@@ -1,6 +1,0 @@
-{
-  "voice": {
-    "silence_threshold": 0.8,
-    "model_size": "turbo"
-  }
-}
