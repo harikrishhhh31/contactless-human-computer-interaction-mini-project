@@ -39,7 +39,11 @@ desktop.ini
 models/
 *.log
 *.tmp
-
+.venv/
+*.pdf
+*.pptx
+*.txt
+analysis_report.md
 # Unused/Deprecated Files
 download_model.py
 elite_main.py
