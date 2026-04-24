@@ -108,12 +108,11 @@ class CommandManager(SystemMonitor , KeyboardInput):
         elif "maximize" in command or ("maximise" in command) or "full screen" in command:
             self.maximize_window()
         
-        elif "close window" in command:
-            self.close_window()
-            
         elif "close" in command:
             app = command.replace("close", "").strip()
-            if not self.close_system_software(app):
+            if not app or app == "window":
+                self.close_window()
+            elif not self.close_system_software(app):
                 self.speak(f"no running software in the name {app}")
         
         elif "switch window" in command or "next window" in command or "change window" in command:

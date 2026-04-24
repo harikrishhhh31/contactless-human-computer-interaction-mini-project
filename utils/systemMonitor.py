@@ -348,8 +348,45 @@ class SystemMonitor:
         except Exception as e:
             self.speak(f"Couldn't change volume. {str(e)}")
     
+    def target_window_under_cursor(self):
+        """Find and focus the window directly under the mouse cursor"""
+        system = platform.system()
+        try:
+            if system == "Windows":
+                import win32gui
+                import pyautogui
+                # Get current cursor position
+                pos = pyautogui.position()
+                # Find window handle at that position
+                hwnd = win32gui.WindowFromPoint((pos.x, pos.y))
+                # If found, bring it to the foreground
+                if hwnd:
+                    # Handle child windows (like controls inside a window)
+                    hwnd = win32gui.GetAncestor(hwnd, 2) # GA_ROOT
+                    win32gui.SetForegroundWindow(hwnd)
+                    return True
+            
+            elif system == "Darwin":  # macOS
+                subprocess.run(['osascript', '-e', 
+                    'tell application "System Events" to set frontmost of (first process whose frontmost is false and (count of windows) > 0) to true'])
+                return True
+                
+            elif system == "Linux":
+                # Use xdotool to get window under mouse and focus it
+                result = subprocess.run(['xdotool', 'getmouselocation', '--shell'], capture_output=True, text=True)
+                for line in result.stdout.split('\n'):
+                    if line.startswith('WINDOW='):
+                        window_id = line.split('=')[1]
+                        if window_id:
+                            subprocess.run(['xdotool', 'windowactivate', window_id])
+                            return True
+        except Exception as e:
+            print(f"Error targeting window: {e}")
+        return False
+
     def minimize_window(self):
-        """Minimize the active window"""
+        """Minimize the window under the cursor"""
+        self.target_window_under_cursor()
         system = platform.system()
         try:
             if system == "Windows":
@@ -388,7 +425,8 @@ class SystemMonitor:
             self.speak(f"Couldn't minimize window. You may need to install pyautogui or xdotool")
     
     def maximize_window(self):
-        """Maximize the active window"""
+        """Maximize the window under the cursor"""
+        self.target_window_under_cursor()
         system = platform.system()
         try:
             if system == "Windows":
@@ -426,7 +464,8 @@ class SystemMonitor:
             self.speak(f"Couldn't maximize window. You may need to install pyautogui or wmctrl")
     
     def close_window(self):
-        """Close the active window"""
+        """Close the window under the cursor"""
+        self.target_window_under_cursor()
         system = platform.system()
         try:
             if system == "Windows":
